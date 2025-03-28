@@ -15,6 +15,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -37,6 +38,9 @@ public class JWTFilter extends OncePerRequestFilter {
         String role =null;
         if(authHeader != null && authHeader.startsWith("Bearer")){
             token = authHeader.substring(7);
+        }
+        if(token != null){
+
             try{
                 username = jwtService.extractUsername(token);
                 role = jwtService.extractRole(token);
@@ -45,11 +49,16 @@ public class JWTFilter extends OncePerRequestFilter {
             }
         }
         if(username != null && SecurityContextHolder.getContext().getAuthentication()==null){
-            UserDetails userDetails = context.getBean(CustomUserDetailService.class).loadUserByUsername(username);
-            if(jwtService.validateToken(token,userDetails)){
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails,null, List.of(new SimpleGrantedAuthority(role)));
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+            try{
+                UserDetails userDetails = context.getBean(CustomUserDetailService.class).loadUserByUsername(username);
+                if(jwtService.validateToken(token,userDetails)){
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails,null, List.of(new SimpleGrantedAuthority(role)));
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
+
+            }catch(UsernameNotFoundException e){
+                System.out.println("User not found error");
             }
         }
         filterChain.doFilter(request,response);

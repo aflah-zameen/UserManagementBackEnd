@@ -42,11 +42,17 @@ public class UserService {
         }
         String hashedPassword = passwordEncoder.encode(request.getPassword());
         User user = new User(request.getUsername(),request.getEmail(),hashedPassword, Role.ROLE_USER);
+        user.setIsBlocked(false);
         userRepository.save(user);
         return user;
     }
 
     public LoginResponse verifyUser(AuthRequest request)throws RuntimeException {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        if (user.getIsBlocked()) {
+            throw new RuntimeException("User is blocked. Contact support.");
+        }
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(),request.getPassword())
         );
@@ -71,7 +77,7 @@ public class UserService {
         List<UserResponse> userResponses = new ArrayList<>();
         List<User> users =  userRepository.findAll();
         for(User user : users){
-            userResponses.add(new UserResponse(user.getUsername(),user.getEmail(), user.getProfilePicture()));
+            userResponses.add(new UserResponse(user.getId(),user.getUsername(),user.getEmail(), user.getProfilePicture(),user.getIsBlocked()));
         }
         return userResponses;
     }
@@ -82,7 +88,7 @@ public class UserService {
 
     public UserResponse fetchData(String email) throws UsernameNotFoundException{
         User user = userRepository.findByEmail(email).orElseThrow(() -> new UsernameNotFoundException("User not found"));
-        return new UserResponse(user.getUsername(),user.getEmail(),user.getProfilePicture());
+        return new UserResponse(user.getId(),user.getUsername(),user.getEmail(),user.getProfilePicture(),user.getIsBlocked());
     }
 
     public String uploadImage(MultipartFile file) {
@@ -114,5 +120,64 @@ public class UserService {
         }
 
         return null;  // Return null if upload fails
+    }
+
+    public void updateImageUser(String email,String url) {
+        User user = userRepository.findByEmail(email).orElseThrow(()-> new UsernameNotFoundException("User not found"));
+        user.setProfilePicture(url);
+        userRepository.save(user);
+    }
+
+    public String updateUser(String username, String newEmail,String oldEmail, String url) {
+        System.out.println(oldEmail +" "+newEmail);
+        User user = userRepository.findByEmail(oldEmail).orElseThrow(()->new UsernameNotFoundException("User not Found"));
+        if(!username.trim().isEmpty())
+        user.setUsername(username);
+        if(!newEmail.trim().isEmpty())
+            user.setEmail(newEmail);
+        if(url.isEmpty())
+            user.setProfilePicture(null);
+        else
+            user.setProfilePicture(url);
+        userRepository.save(user);
+        return jwtService.generateToken(newEmail,Role.ROLE_USER.name());
+    }
+
+    public void updateUserAdmin(String username, String email, long id, String password) {
+        User user = userRepository.findById(id).orElseThrow(()-> new UsernameNotFoundException("User not Found"));
+        if(!username.trim().isEmpty()){
+            user.setUsername(username);
+        }
+        if(!email.trim().isEmpty()){
+            user.setEmail(email);
+        }
+        if(!password.trim().isEmpty()){
+            String hashedPassword = passwordEncoder.encode(password);
+            user.setPassword(hashedPassword);
+        }
+
+        userRepository.save(user);
+    }
+
+    public void deleteUser(Long id) throws UsernameNotFoundException {
+        if(userRepository.existsById(id))
+        {
+            userRepository.deleteById(id);
+        }
+        else{
+            throw new UsernameNotFoundException("user not found");
+        }
+    }
+
+    public void blockUser(Long id) throws UsernameNotFoundException{
+        User user = userRepository.findById(id).orElseThrow(()-> new UsernameNotFoundException("User not found"));
+        user.setIsBlocked(true);
+        userRepository.save(user);
+    }
+
+    public void addUser(String username, String email, String password) {
+        User user = new User(username,email,passwordEncoder.encode(password),Role.ROLE_USER);
+        user.setIsBlocked(false);
+        userRepository.save(user);
     }
 }

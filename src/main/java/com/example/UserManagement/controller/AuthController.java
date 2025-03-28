@@ -31,7 +31,7 @@ public class AuthController {
 
             ));
         }catch(RuntimeException e){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error","Invalid Credentials"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error",e.getMessage()));
         }
     }
 

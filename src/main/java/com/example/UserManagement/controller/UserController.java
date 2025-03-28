@@ -30,16 +30,28 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         }
     }
-    @PostMapping("/profile/upload-image")
-    public ResponseEntity<Map<String,String>> uploadImage(@RequestParam("image")MultipartFile file){
-       String url =  userService.uploadImage(file);
-       if(url != null){
-           return ResponseEntity.ok(Map.of(
-                 "url",url
-           ));
-       }
-       return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of(
-               "error","Api request has some problem"
-       ));
+    @PostMapping("/profile/update-detail")
+    public ResponseEntity<Map<String,String>> uploadImage(@RequestParam(name = "image",required = false)MultipartFile file,
+                                                          @RequestParam("oldEmail") String oldEmail,
+                                                          @RequestParam("username") String username,
+                                                          @RequestParam("newEmail") String newEmail){
+        String url="";
+        if(file != null)
+        {
+            url =  userService.uploadImage(file);
+        }
+        try{
+            String token = userService.updateUser(username,newEmail,oldEmail,url);
+            return ResponseEntity.ok(Map.of(
+                    "url",url,
+                    "token",token
+            ));
+        }
+        catch(UsernameNotFoundException e){
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of(
+                    "error","Api request has some problem"
+            ));
+        }
+
     }
 }
